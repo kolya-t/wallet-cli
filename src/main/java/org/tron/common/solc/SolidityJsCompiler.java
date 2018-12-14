@@ -1,26 +1,22 @@
 package org.tron.common.solc;
 
-import static java.util.stream.Collectors.toList;
-
-import java.io.BufferedOutputStream;
+import com.google.common.collect.Maps;
+import com.squareup.okhttp.MediaType;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.RequestBody;
+import com.squareup.okhttp.Response;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Serializable;
-import java.net.URL;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-import org.tron.common.filesystem.PathUtil;
+import java.net.URLEncoder;
+import java.util.Map;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.tron.common.filesystem.SolidityFileUtil;
+import org.tron.common.solc.CompilationResult.ContractMetadata;
 //import org.springframework.beans.factory.annotation.Autowired;
 //import org.springframework.stereotype.Component;
 
@@ -33,42 +29,33 @@ public class SolidityJsCompiler {
 
   //    @Autowired
   public SolidityJsCompiler() {
+    new Thread(() -> SolidityJsCompiler.this.initJsCompiler()).start();
+    try {
+      Thread.sleep(10000);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     solc = new Solc();
   }
 
-  public static Object compile(boolean enableOptimize) {
+  private void initJsCompiler() {
+    System.out.println(System.getProperty("user.dir"));
     try {
-      ScriptEngineManager manager = new ScriptEngineManager();
-      ScriptEngine engine = manager.getEngineByName("JavaScript");
-      if (!(engine instanceof Invocable)) {
-        System.out.println("Invoking methods is not supported.");
-        return null;
+      Process p = null;
+      String line = null;
+      BufferedReader stdout = null;
+      String jsPath = System.getProperty("user.dir") + "/tron-compile-node/" + "app.js";
+      String command = "node " + jsPath;
+      p = Runtime.getRuntime().exec(command);
+      stdout = new BufferedReader(new InputStreamReader(
+          p.getInputStream()));
+      while ((line = stdout.readLine()) != null) {
+        System.out.println(line);
       }
-      Invocable inv = (Invocable) engine;
-      URL url = SolidityFileUtil.class.getClassLoader().getResource(PathUtil
-          .combine("bin/js/", "compiler.js"));
-      URL url1 = SolidityFileUtil.class.getClassLoader().getResource(PathUtil
-          .combine("bin/js/", "soljson_v2.0.js"));
-      URL url2 = SolidityFileUtil.class.getClassLoader().getResource(PathUtil
-          .combine("bin/js/", "require.js"));
-
-      //engine.eval("load(\"" + url1.getPath() + "\")");
-      engine.eval("load(\"" + url2.getPath() + "\")");
-      engine.eval("load(\"" + url1.getPath() + "\")");
-      engine.eval("load(\"" + url.getPath() + "\")");
-      Object compiler = engine.get("compiler");
-
-      File existFile = SolidityFileUtil.getExistFile("test01.sol");
-      Object addResult = inv
-          .invokeMethod(compiler, "compile",
-              readCityFile(existFile), true);
-      return addResult;
-    } catch (ScriptException e) {
-      e.printStackTrace();
-    } catch (NoSuchMethodException e) {
+      stdout.close();
+    } catch (Exception e) {
       e.printStackTrace();
     }
-    return null;
   }
 
   private static String readCityFile(File file02) {
@@ -84,7 +71,7 @@ public class SolidityJsCompiler {
         stringBuilder = new StringBuilder();
         while ((line = reader.readLine()) != null) {
           // stringBuilder.append(line);
-          stringBuilder.append(line);
+          stringBuilder.append(line).append("\n");
         }
         reader.close();
         is.close();
@@ -99,324 +86,41 @@ public class SolidityJsCompiler {
 
   }
 
-  /**
-   * This class is mainly here for backwards compatibility; however we are now reusing it making it
-   * the solely public interface listing all the supported options.
-   */
-  public static final class Options {
-
-    public static final OutputOption AST = OutputOption.AST;
-    public static final OutputOption BIN = OutputOption.BIN;
-    public static final OutputOption HASHES = OutputOption.HASHES;
-    public static final OutputOption INTERFACE = OutputOption.INTERFACE;
-    public static final OutputOption ABI = OutputOption.ABI;
-    public static final OutputOption METADATA = OutputOption.METADATA;
-    public static final OutputOption ASTJSON = OutputOption.ASTJSON;
-
-    private static final NameOnlyOption OPTIMIZE = NameOnlyOption.OPTIMIZE;
-    private static final NameOnlyOption VERSION = NameOnlyOption.VERSION;
-
-    private static class CombinedJson extends ListOption {
-
-      private CombinedJson(List values) {
-        super("combined-json", values);
-      }
-    }
-
-    public static class AllowPaths extends ListOption {
-
-      public AllowPaths(List values) {
-        super("allow-paths", values);
-      }
-    }
-  }
-
-  public interface Option extends Serializable {
-
-    String getValue();
-
-    String getName();
-  }
-
-  private static class ListOption implements Option {
-
-    private String name;
-    private List values;
-
-    private ListOption(String name, List values) {
-      this.name = name;
-      this.values = values;
-    }
-
-    @Override
-    public String getValue() {
-      StringBuilder result = new StringBuilder();
-      for (Object value : values) {
-        if (OutputOption.class.isAssignableFrom(value.getClass())) {
-          result.append((result.length() == 0) ? ((OutputOption) value).getName()
-              : ',' + ((OutputOption) value).getName());
-        } else if (Path.class.isAssignableFrom(value.getClass())) {
-          result.append((result.length() == 0) ? ((Path) value).toAbsolutePath().toString()
-              : ',' + ((Path) value).toAbsolutePath().toString());
-        } else if (File.class.isAssignableFrom(value.getClass())) {
-          result.append((result.length() == 0) ? ((File) value).getAbsolutePath()
-              : ',' + ((File) value).getAbsolutePath());
-        } else if (String.class.isAssignableFrom(value.getClass())) {
-          result.append((result.length() == 0) ? value : "," + value);
-        } else {
-          throw new UnsupportedOperationException(
-              "Unexpected type, value '" + value + "' cannot be retrieved.");
-        }
-      }
-      return result.toString();
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public String toString() {
-      return name;
-    }
-  }
-
-  private enum NameOnlyOption implements Option {
-    OPTIMIZE("optimize"),
-    VERSION("version");
-
-    private String name;
-
-    NameOnlyOption(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public String getValue() {
-      return "";
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public String toString() {
-      return name;
-    }
-  }
-
-  private enum OutputOption implements Option {
-    AST("ast"),
-    BIN("bin"),
-    INTERFACE("interface"),
-    ABI("abi"),
-    HASHES("hashes"),
-    METADATA("metadata"),
-    ASTJSON("ast-json");
-
-    private String name;
-
-    OutputOption(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public String getValue() {
-      return "";
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public String toString() {
-      return name;
-    }
-  }
-
-  public static class Result {
-
-    public String errors;
-    public String output;
-    private boolean success;
-
-    public Result(String errors, String output, boolean success) {
-      this.errors = errors;
-      this.output = output;
-      this.success = success;
-    }
-
-    public boolean isFailed() {
-      return !success;
-    }
-  }
-
-  private static class ParallelReader extends Thread {
-
-    private InputStream stream;
-    private StringBuilder content = new StringBuilder();
-
-    ParallelReader(InputStream stream) {
-      this.stream = stream;
-    }
-
-    public String getContent() {
-      return getContent(true);
-    }
-
-    public synchronized String getContent(boolean waitForComplete) {
-      if (waitForComplete) {
-        while (stream != null) {
-          try {
-            wait();
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-        }
-      }
-      return content.toString();
-    }
-
-    public void run() {
-      try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
-        String line;
-        while ((line = reader.readLine()) != null) {
-          content.append(line).append("\n");
-        }
-      } catch (IOException ioe) {
-        ioe.printStackTrace();
-      } finally {
-        synchronized (this) {
-          stream = null;
-          notifyAll();
-        }
-      }
-    }
-  }
-
-  public static Result compile(byte[] source, boolean optimize, boolean combinedJson,
-      Option... options) throws IOException {
-    return getInstance().compileSrc(source, optimize, combinedJson, options);
-  }
-
-  public Result compileSrc(File source, boolean optimize, boolean combinedJson, Option... options)
+  public Map<String, ContractMetadata> compile(File existFile, boolean optimize)
       throws IOException {
-    List<String> commandParts = prepareCommandOptions(optimize, combinedJson, options);
+    JSONObject jsonResult = compileSrc(existFile, optimize);
+    JSONArray contractArr = jsonResult.getJSONArray("contractArr");
+    Map<String, ContractMetadata> comtracts = Maps.newHashMap();
+    for (int i = 0; i < contractArr.length(); i++) {
+      JSONObject contract = (JSONObject) contractArr.get(i);
+      ContractMetadata contractMetadata = new ContractMetadata();
 
-    commandParts.add(source.getPath());
-
-    ProcessBuilder processBuilder = new ProcessBuilder(commandParts)
-        .directory(new File(SolidityFileUtil.getSourcePath()));
-    processBuilder.environment().put("LD_LIBRARY_PATH",
-        solc.getExecutable().getParentFile().getCanonicalPath());
-
-    Process process = processBuilder.start();
-
-    ParallelReader error = new ParallelReader(process.getErrorStream());
-    ParallelReader output = new ParallelReader(process.getInputStream());
-    error.start();
-    output.start();
-
-    try {
-      process.waitFor();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+      contractMetadata.abi = contract.getString("abi");
+      contractMetadata.bin = contract.getString("bytecode");
+      comtracts.put(contract.getString("name"), contractMetadata);
     }
-    boolean success = process.exitValue() == 0;
-
-    return new Result(error.getContent(), output.getContent(), success);
+    return comtracts;
   }
 
-  private List<String> prepareCommandOptions(boolean optimize, boolean combinedJson,
-      Option... options) throws IOException {
-    List<String> commandParts = new ArrayList<>();
-    commandParts.add(solc.getExecutable().getCanonicalPath());
-    if (optimize) {
-      commandParts.add("--" + Options.OPTIMIZE.getName());
-    }
-    if (combinedJson) {
-      Option combinedJsonOption = new Options.CombinedJson(
-          getElementsOf(OutputOption.class, options));
-      commandParts.add("--" + combinedJsonOption.getName());
-      commandParts.add(combinedJsonOption.getValue());
-    } else {
-      for (Option option : getElementsOf(OutputOption.class, options)) {
-        commandParts.add("--" + option.getName());
-      }
-    }
-    for (Option option : getElementsOf(ListOption.class, options)) {
-      commandParts.add("--" + option.getName());
-      commandParts.add(option.getValue());
-    }
-    return commandParts;
-  }
+  public JSONObject compileSrc(File existFile, boolean optimize) throws IOException {
+    OkHttpClient client = new OkHttpClient();
+    String readCityFile = readCityFile(existFile);
+    String encode = URLEncoder.encode(readCityFile, "UTF-8");
+    MediaType mediaType = MediaType.parse("application/x-www-form-urlencoded");
+    RequestBody body = RequestBody.create(mediaType,
+        "solidity=" + encode + "&optimize=" + optimize);
+    Request request = new Request.Builder()
+        .url("http://127.0.0.1:3009/compile")
+        .post(body)
+        .addHeader("Content-Type", "application/x-www-form-urlencoded")
+        .addHeader("Cache-Control", "no-cache")
+        .addHeader("Postman-Token", "44c898c1-61c3-4477-b21a-fbb52f9f11f9")
+        .build();
 
-  private static <T> List<T> getElementsOf(Class<T> clazz, Option... options) {
-    return Arrays.stream(options).filter(clazz::isInstance).map(clazz::cast).collect(toList());
-  }
-
-  public Result compileSrc(byte[] source, boolean optimize, boolean combinedJson, Option... options)
-      throws IOException {
-    List<String> commandParts = prepareCommandOptions(optimize, combinedJson, options);
-
-    ProcessBuilder processBuilder = new ProcessBuilder(commandParts)
-        .directory(solc.getExecutable().getParentFile());
-    processBuilder.environment().put("LD_LIBRARY_PATH",
-        solc.getExecutable().getParentFile().getCanonicalPath());
-
-    Process process = processBuilder.start();
-
-    try (BufferedOutputStream stream = new BufferedOutputStream(process.getOutputStream())) {
-      stream.write(source);
-    }
-
-    ParallelReader error = new ParallelReader(process.getErrorStream());
-    ParallelReader output = new ParallelReader(process.getInputStream());
-    error.start();
-    output.start();
-
-    try {
-      process.waitFor();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-    boolean success = process.exitValue() == 0;
-
-    return new Result(error.getContent(), output.getContent(), success);
-  }
-
-  public static String runGetVersionOutput() throws IOException {
-    List<String> commandParts = new ArrayList<>();
-    commandParts.add(getInstance().solc.getExecutable().getCanonicalPath());
-    commandParts.add("--" + Options.VERSION.getName());
-
-    ProcessBuilder processBuilder = new ProcessBuilder(commandParts)
-        .directory(getInstance().solc.getExecutable().getParentFile());
-    processBuilder.environment().put("LD_LIBRARY_PATH",
-        getInstance().solc.getExecutable().getParentFile().getCanonicalPath());
-
-    Process process = processBuilder.start();
-
-    ParallelReader error = new ParallelReader(process.getErrorStream());
-    ParallelReader output = new ParallelReader(process.getInputStream());
-    error.start();
-    output.start();
-
-    try {
-      process.waitFor();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-    if (process.exitValue() == 0) {
-      return output.getContent();
-    }
-
-    throw new RuntimeException("Problem getting solc version: " + error.getContent());
+    Response response = client.newCall(request).execute();
+    //System.out.println(response.body().string());
+    JSONObject myJsonObject = new JSONObject(response.body().string());
+    return myJsonObject;
   }
 
   public static SolidityJsCompiler getInstance() {
@@ -427,7 +131,21 @@ public class SolidityJsCompiler {
   }
 
   public static void main(String[] args) {
-    Object compile = compile(true);
-    System.out.println(compile);
+    // Object compile = compile(true);
+    // System.out.println(compile);
+    SolidityJsCompiler solidityJsCompiler = SolidityJsCompiler.getInstance();
+
+    File existFile = SolidityFileUtil.getExistFile("test01.sol");
+    try {
+      Map<String, ContractMetadata> compile = solidityJsCompiler.compile(existFile, true);
+      compile.forEach((k, v) -> {
+        System.out.println(k);
+        System.out.println(v.abi);
+        System.out.println(v.bin);
+      });
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
+
 }

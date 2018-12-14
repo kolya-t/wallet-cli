@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tron Compile tool</title>
+    <style>
+        *{
+            margin:0;
+            padding:0;
+        }
+
+        html,body{
+            width:100%;
+            height:100%;
+        }
+        .result{
+            display: flex;
+            width:100%;
+            margin-top:10px;
+        }
+        .result >div{
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+            flex:1;
+            height:400px;
+            padding:20px;
+            width:50%;
+            border:1px solid #ccc;
+        }
+        .byte,.abi{
+            border:1px solid #ccc;
+            width:100%;
+            height:90%;
+            word-wrap: break-word;
+            overflow-y: scroll
+        }
+        #btn{
+            width:100px;
+            padding:10px;
+            font-size:20px;
+            font-weight: bold;
+        }
+    </style>
+    <script src="./public/jquery.js"></script>
+    <script>
+        $(function(){
+            $('#compile').on('click',function () {
+                 let solidity = $('#input').val();
+                 if(solidity){
+                     $.post('http://localhost:3009/compile',{solidity:solidity}).then(function(res){
+                         console.log(res);
+                     })
+                 }
+            })
+        })
+    </script>
+
+</head>
+<body>
+    <div class="box">
+
+        <form>
+             <textarea name="" id="input" style="width:100%;height:300px;">
+
+        </textarea>
+        </form>
+
+        <p style="text-align: center">
+            <input type="button" id="compile" value="Compile">
+        </p>
+    </div>
+</body>
+</html>

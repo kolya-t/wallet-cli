@@ -2,27 +2,25 @@ package org.tron.common.utils;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.lang3.StringUtils;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.Hash;
 import org.tron.core.exception.EncodingException;
-import org.tron.walletserver.WalletApi;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tron.walletserver.WalletApi;
 
 public class AbiUtil {
 
-  static Pattern paramTypeBytes = Pattern.compile("^bytes([0-9]*)$");
-  static Pattern paramTypeNumber = Pattern.compile("^(u?int)([0-9]*)$");
-  static Pattern paramTypeArray = Pattern.compile("^(.*)\\[([0-9]*)\\]$");
-//
-  static abstract class Coder {
+  private static Pattern paramTypeBytes = Pattern.compile("^bytes([0-9]*)$");
+  private static Pattern paramTypeNumber = Pattern.compile("^(u?int)([0-9]*)$");
+  private static Pattern paramTypeArray = Pattern.compile("^(.*)\\[([0-9]*)\\]$");
+  //
+  private static abstract class Coder {
     boolean dynamic = false;
-    String name;
-    String type;
-
-//    DataWord[] encode
     abstract byte[] encode(String value) throws EncodingException;
     abstract byte[] decode();
 
@@ -37,10 +35,6 @@ public class AbiUtil {
     return typeString.split(",");
   }
 
-  public static String geMethodId(String methodSign) {
-    return null;
-  }
-
   public static Coder getParamCoder(String type) {
 
     switch (type) {
@@ -53,7 +47,7 @@ public class AbiUtil {
       case "bytes":
         return new CoderDynamicBytes();
       case "trcToken":
-        return new CoderToken();
+        return new CoderNumber();
     }
 
     if (paramTypeBytes.matcher(type).find())
@@ -113,7 +107,7 @@ public class AbiUtil {
       }
 
       if (this.length == -1) {
-        return concat(new DataWord(strings.size()).getData(), pack(coders, strings));
+        return ByteUtil.merge(new DataWord(strings.size()).getData(), pack(coders, strings));
       } else {
         return pack(coders, strings);
       }
@@ -285,10 +279,21 @@ public class AbiUtil {
 
     for (int idx = 0;idx < codes.size();  idx++) {
       Coder coder = codes.get(idx);
-      String value = values.get(idx).toString();
-
+      Object parameter = values.get(idx);
+      String value;
+      if (parameter instanceof List) {
+        StringBuilder sb = new StringBuilder();
+        for (Object item: (List) parameter) {
+          if (sb.length() != 0) {
+            sb.append(",");
+          }
+          sb.append("\"").append(item).append("\"");
+        }
+        value = "[" + sb.toString() + "]";
+      } else {
+        value = parameter.toString();
+      }
       byte[] encoded = coder.encode(value);
-
       encodedList.add(encoded);
 
       if (coder.dynamic) {
@@ -322,24 +327,53 @@ public class AbiUtil {
     return data;
   }
 
-  public static String parseMethod(String methodSign, String params) throws EncodingException {
+  public static byte[] parseMethod(String methodSign) throws EncodingException {
+    return parseMethod(methodSign, "", false);
+  }
+
+  public static byte[] parseMethod(String methodSign, String params) throws EncodingException {
     return parseMethod(methodSign, params, false);
   }
 
-  public static String parseMethod(String methodSign, String input, boolean isHex)
-      throws EncodingException {
+  public static byte[] parseMethod(String methodSign, List<Object> inputList) throws EncodingException {
+    return parseMethod(methodSign, inputList, false);
+  }
+
+  public static byte[] parseMethod(String methodSign, List<Object> parameters, boolean isHex) throws EncodingException {
+    if (parameters == null || parameters.isEmpty()){
+      throw new EncodingException("input list empty");
+    }
+    String[] inputArr = new String[parameters.size()];
+    int i = 0;
+    for (Object parameter: parameters) {
+      if (parameter instanceof  List) {
+        StringBuilder sb = new StringBuilder();
+        for (Object item: (List) parameter) {
+          if (sb.length() != 0) {
+            sb.append(",");
+          }
+          sb.append("\\\"").append(item).append("\\\"");
+        }
+        inputArr[i++] = "\"[" + sb.toString() + "]\"";
+      } else {
+        inputArr[i++] = (parameter instanceof String) ? ("\"" + parameter + "\"") : ("" + parameter);
+      }
+    }
+    return parseMethod(methodSign, StringUtils.join(inputArr, ','), isHex);
+  }
+
+  public static byte[] parseMethod(String methodSign, String input, boolean isHex) throws EncodingException {
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
-    System.out.println(methodSign + ":" + Hex.toHexString(selector));
-    if (input.length() == 0) {
-      return Hex.toHexString(selector);
+    if (StringUtils.isEmpty(input)) {
+      return selector;
     }
     if (isHex) {
-      return Hex.toHexString(selector) + input;
+      return Hex.decode(Hex.toHexString(selector) + input);
     }
     byte[] encodedParms = encodeInput(methodSign, input);
 
-    return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
+    return Hex.decode(Hex.toHexString(selector) + Hex.toHexString(encodedParms));
   }
 
   public static byte[] encodeInput(String methodSign, String input) throws EncodingException {
@@ -361,62 +395,96 @@ public class AbiUtil {
     return pack(coders, items);
   }
 
-  public  static void main(String[] args) throws EncodingException {
-//    String method = "test(address,string,int)";
-    String method = "test(string,int2,string)";
-    String params = "asdf,3123,adf";
+  public static void test() throws EncodingException {
+    String arrayMethod3 = "test(uint256[],address[])";
 
-    String arrayMethod1 = "test(uint,uint256[3])";
-    String arrayMethod2 = "test(uint,uint256[])";
-    String arrayMethod3 = "test(uint,address[])";
-    String byteMethod1 = "test(bytes32,bytes11)";
-    String tokenMethod = "test(trcToken,uint256)";
-    String tokenParams = "\"nmb\",111";
+//    String str = "1,[\\\"TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u\\\",\"TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u\"]";
 
-    System.out.println("token:" + parseMethod(tokenMethod, tokenParams));
+    List<Object> l = new ArrayList<>();
+
+    l.add(Arrays.asList(1, 2, 3));
+    List<String> addresses = new ArrayList<>();
+    addresses.add("TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u");
+    addresses.add("TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u");
+    l.add(Arrays.asList("TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u", "TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u"));
+    parseMethod(arrayMethod3, l);
 
 
-    String method1 = "test(uint256,string,string,uint256[])";
-    String expected1  = "db103cf30000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000014200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
-    String method2 = "test(uint256,string,string,uint256[3])";
-    String expected2 = "000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
-    String listString = "1 ,\"B\",\"C\", [1, 2, 3]";
+//    System.out.println(str);
     try {
-      System.out.println(parseMethod(method1, listString));
-      System.out.println(parseMethod(method2, listString));
-
-      String bytesValue1 = "\"0112313\",112313";
-      String bytesValue2 = "123123123";
-
-      System.out.println(parseMethod(byteMethod1, bytesValue1));
+      System.out.println("token:" + Hex.toHexString(parseMethod(arrayMethod3, l)));
     } catch (EncodingException e) {
       e.printStackTrace();
     }
 
+  }
 
-//    System.out.println(parseMethod(byteMethod1, bytesValue2));
+//  public static int WORD_LENGTH = 32;
+//  public static List<String> unpackAddressArray(byte[] data) {
+//    if (data.length % WORD_LENGTH != 0 || data.length < 3) {
+//      throw new IllegalArgumentException("Illegal array data length:" + data.length);
+//    }
+////    int offset = DataWord.getDataWord(data, 0).intValue();
+//    int length = DataWord.getDataWord(data, 1).intValue();
+//    ArrayList<String> addressList = new ArrayList<>();
+//    for (int i = 0; i < length; i++) {
+//      DataWord dataWord = DataWord.getDataWord(data, 2 + i);
+//      if (!dataWord.isZero()) {
+//        byte[] noprefix = ByteUtil.stripLeadingZeroes(dataWord.getData());
+//        addressList.add(WalletUtil.encode58CheckWithoutPrefix(noprefix));
+//      }
+//    }
+//    return addressList;
+//  }
 
-//    String method3 = "voteForSingleWitness(address,uint256)";
-//    String method3 = "voteForSingleWitness(address)";
-//    String params3 = "\"TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u\"";
+  private void testAddressUnpack() {
+
+  }
+
+  public  static void main(String[] args) throws EncodingException {
+    test();
+//    String method = "test(address,string,int)";
+//    String method = "test(string,int2,string)";
+//    String params = "asdf,3123,adf";
 //
-//    System.out.println(parseMethod(method3, params3));
+//    String arrayMethod1 = "test(uint,uint256[3])";
+//    String arrayMethod2 = "test(uint,uint256[])";
+//    String arrayMethod3 = "test(uint,address[])";
+//    String byteMethod1 = "test(bytes32,bytes11)";
+//    String tokenMethod = "test(trcToken,uint256)";
+//    String tokenParams = "\"nmb\",111";
+//
+//    System.out.println("token:" + parseMethod(tokenMethod, tokenParams));
+//
+//
+    String method1 = "test(uint256,string,string,uint256[])";
+    String expected1  = "db103cf30000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000014200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
+//    String method2 = "test(uint256,string,string,uint256[3])";
+//    String expected2 = "000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
+//    String listString = "1 ,\"B\",\"C\", [1, 2, 3]";
+//
+////    ["Adsfsdf","dsfsdf"]
+//    try {
+//      System.out.println(parseMethod(method1, listString));
+//      System.out.println(parseMethod(method2, listString));
+//
+//      String bytesValue1 = "\"0112313\",112313";
+//      String bytesValue2 = "123123123";
+//
+
+
+//      System.out.println(parseMethod(byteMethod1, bytesValue1));
+//    } catch (EncodingException e) {
+//      e.printStackTrace();
+//    }
+//
+//
+////    System.out.println(parseMethod(byteMethod1, bytesValue2));
+//
+////    String method3 = "voteForSingleWitness(address,uint256)";
+////    String method3 = "voteForSingleWitness(address)";
+////    String params3 = "\"TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u\"";
+////
+////    System.out.println(parseMethod(method3, params3));
   }
-
-  public static byte[] concat(byte[] ... bytesArray) {
-    int length = 0;
-    for (byte[] bytes: bytesArray) {
-      length += bytes.length;
-    }
-    byte[] ret = new byte[length];
-    int index = 0;
-    for(byte[] bytes: bytesArray) {
-      System.arraycopy(bytes, 0, ret, index, bytes.length);
-      index += bytes.length;
-    }
-    return ret;
-  }
-
-
-
 }

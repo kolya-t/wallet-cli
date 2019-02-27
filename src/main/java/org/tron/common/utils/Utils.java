@@ -1181,6 +1181,11 @@ public class Utils {
     result += "\n";
     if (transactionInfo.getResult().equals(code.SUCESS)) {
       result += "SUCCESS";
+//      result += "\n";
+//      result += "contractResult: ";
+//      result += "\n";
+//
+      result += ByteArray.toHexString(transactionInfo.getContractResult(0).toByteArray());
     } else {
       result += "FAILED";
     }
@@ -1188,10 +1193,7 @@ public class Utils {
     result += "resMessage: ";
     result += "\n";
     result += ByteArray.toStr(transactionInfo.getResMessage().toByteArray());
-    result += "\n";
-    result += "contractResult: ";
-    result += "\n";
-    result += ByteArray.toHexString(transactionInfo.getContractResult(0).toByteArray());
+
     result += "\n";
     result += "contractAddress: ";
     result += "\n";

@@ -1641,7 +1641,7 @@ public class Client {
     if (tokenId.equalsIgnoreCase("#")) {
       tokenId = "";
     }
-    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+    byte[] input = AbiUtil.parseMethod(methodStr, argsStr, isHex);
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper.callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId);
@@ -2173,8 +2173,8 @@ public class Client {
         System.out.println(e.getMessage());
       } catch (Exception e) {
         System.out.println(cmd + " failed!");
-        logger.error(e.getMessage());
-        e.printStackTrace();
+        logger.error(e.getMessage(), e);
+//        e.printStackTrace();
       }
     }
   }

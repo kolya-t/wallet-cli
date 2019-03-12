@@ -359,15 +359,15 @@ public class WalletApi {
     Scanner in = new Scanner(System.in);
     System.out.println("Please confirm that you want to continue enter y or Y, else any other.");
 
-    while (true) {
-      String input = in.nextLine().trim();
-      String str = input.split("\\s+")[0];
-      if ("y".equalsIgnoreCase(str)) {
-        break;
-      } else {
-        throw new CancelException("User cancelled");
-      }
-    }
+//    while (true) {
+//      String input = in.nextLine().trim();
+//      String str = input.split("\\s+")[0];
+//      if ("y".equalsIgnoreCase(str)) {
+//        break;
+//      } else {
+//        throw new CancelException("User cancelled");
+//      }
+//    }
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
     byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
@@ -398,6 +398,31 @@ public class WalletApi {
     System.out.println(
         "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
     transaction = signTransaction(transaction);
+    String trxId =  ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        int tries = 10;
+
+        while (tries > 0) {
+          tries --;
+          logger.info("query id:" + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+          Optional<TransactionInfo> transactionInfoById = getTransactionInfoById(trxId);
+          if (transactionInfoById.get().getContractResultCount() == 0) {
+            try {
+              Thread.sleep(1000);
+            } catch (InterruptedException e) {
+              e.printStackTrace();
+            }
+          } else {
+            logger.info(Utils.printTransactionInfo(transactionInfoById.get()));
+          }
+        }
+
+
+
+      }
+    }).start();
     return rpcCli.broadcastTransaction(transaction);
   }
 

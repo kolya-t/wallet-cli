@@ -406,7 +406,7 @@ public class WalletApi {
 
         while (tries > 0) {
           tries --;
-          logger.info("query id:" + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+          logger.info("query id:" + trxId);
           Optional<TransactionInfo> transactionInfoById = getTransactionInfoById(trxId);
           if (transactionInfoById.get().getContractResultCount() == 0) {
             try {
@@ -416,6 +416,7 @@ public class WalletApi {
             }
           } else {
             logger.info(Utils.printTransactionInfo(transactionInfoById.get()));
+            break;
           }
         }
 

@@ -191,7 +191,7 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
-      return encodeDynamicBytes(value);
+      return encodeDynamicBytes(value, true);
     }
 
     @Override
@@ -251,14 +251,23 @@ public class AbiUtil {
     }
   }
 
-  public static byte[] encodeDynamicBytes(String value) {
-    byte[] data = value.getBytes();
+  public static byte[] encodeDynamicBytes(String value, boolean hex) {
+    byte[] data;
+    if (hex) {
+      data = Hex.decode(value);
+    } else {
+      data = value.getBytes();
+    }
+    return encodeDynamicBytes(data);
+  }
+
+  public static byte[] encodeDynamicBytes(byte[] data) {
     List<DataWord> ret = new ArrayList<>();
     ret.add(new DataWord(data.length));
 
     int readInx = 0;
-    int len = value.getBytes().length;
-    while (readInx < value.getBytes().length) {
+    int len = data.length;
+    while (readInx < data.length) {
       byte[] wordData = new byte[32];
       int readLen = len - readInx >= 32 ? 32 : (len - readInx);
       System.arraycopy(data, readInx, wordData, 0, readLen);
@@ -276,6 +285,13 @@ public class AbiUtil {
     }
 
     return retBytes;
+  }
+
+  public static byte[] encodeDynamicBytes(String value) {
+    byte[] data = value.getBytes();
+    List<DataWord> ret = new ArrayList<>();
+    ret.add(new DataWord(data.length));
+    return encodeDynamicBytes(data);
   }
   public static byte[] pack(List<Coder> codes, List<Object> values) throws EncodingException {
 

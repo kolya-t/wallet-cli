@@ -127,19 +127,14 @@ public class Utils {
    * yyyy-MM-dd
    */
   public static Date strToDateLong(String strDate) {
-    if (strDate.length() == 10) {
-      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-      ParsePosition pos = new ParsePosition(0);
-      Date strtodate = formatter.parse(strDate, pos);
-      return strtodate;
-    } else if (strDate.length() == 19) {
+    String formatStr = "yyyy-MM-dd";
+    if ((strDate.indexOf(':') > 0)){
+      formatStr = "yyyy-MM-dd HH:mm:ss";
       strDate = strDate.replace("_", " ");
-      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      ParsePosition pos = new ParsePosition(0);
-      Date strtodate = formatter.parse(strDate, pos);
-      return strtodate;
     }
-    return null;
+    SimpleDateFormat formatter = new SimpleDateFormat(formatStr);
+    ParsePosition pos = new ParsePosition(0);
+    return formatter.parse(strDate, pos);
   }
 
   public static String printAccount(Account account) {

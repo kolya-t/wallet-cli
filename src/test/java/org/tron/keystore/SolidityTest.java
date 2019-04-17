@@ -7,11 +7,14 @@ import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.common.solc.CompilationResult;
 import org.tron.common.utils.Utils;
+import org.tron.core.exception.CipherException;
+import org.tron.core.exception.TronException;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.script.AutoDeployer;
 import org.tron.walletserver.WalletApi;
 
+import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -42,6 +45,28 @@ public class SolidityTest extends AutoDeployer {
       logger.error("test error", e);
     }
   }
+
+//  @Test
+//  public void testTokenBalance() throws CipherException, TronException, IOException, InterruptedException {
+//
+//    WalletFile user = bankClient.generateAddress(testerPswd);
+//    dropAddressIssues(100, user.getAddress());
+//
+//    dropBalance(cli, user, 10_000_000_000L);
+//
+//    CompilationResult compilationResult = doCompile("test4_1.sol", true);
+//
+//    CompilationResult.ContractMetadata dest = compilationResult.getContract("Dest");
+//    String destAddr = deployContract(cli, dest, 1000_000_000);
+//    logger.info("deploy contract Dst:", destAddr);
+////    cli.transferAsset(destAddr, tokenId, 100000);
+//
+//
+//    CompilationResult.ContractMetadata src = compilationResult.getContract("Src");
+//    String srcAddr = deployContract(cli, src, 1000_000_000);
+//    logger.info("deploy contract Src:", srcAddr);
+//
+//  }
 
 //  @Ignore
 //  @Test

@@ -1406,11 +1406,15 @@ public class WalletApi {
             logger.error("Input argument invalid due to no name or no type!");
             return null;
           }
+          Boolean indexed = false;
+          try {
+            indexed = inputItem.getAsJsonObject().get("indexed").getAsBoolean();
+          }catch (Exception e){ }
           String inputName = inputItem.getAsJsonObject().get("name").getAsString();
           String inputType = inputItem.getAsJsonObject().get("type").getAsString();
           SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
               .newBuilder();
-          paramBuilder.setIndexed(false);
+          paramBuilder.setIndexed(indexed);
           paramBuilder.setName(inputName);
           paramBuilder.setType(inputType);
           entryBuilder.addInputs(paramBuilder.build());
@@ -1426,11 +1430,15 @@ public class WalletApi {
             logger.error("Output argument invalid due to no name or no type!");
             return null;
           }
+          Boolean indexed = false;
+          try {
+            indexed = outputItem.getAsJsonObject().get("indexed").getAsBoolean();
+          }catch (Exception e){ }
           String outputName = outputItem.getAsJsonObject().get("name").getAsString();
           String outputType = outputItem.getAsJsonObject().get("type").getAsString();
           SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
               .newBuilder();
-          paramBuilder.setIndexed(false);
+          paramBuilder.setIndexed(indexed);
           paramBuilder.setName(outputName);
           paramBuilder.setType(outputType);
           entryBuilder.addOutputs(paramBuilder.build());

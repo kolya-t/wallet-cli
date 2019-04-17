@@ -4,11 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.common.crypto.Hash;
 import org.tron.common.filesystem.SolidityFileUtil;
 import org.tron.common.solc.CompilationResult;
 import org.tron.common.solc.CompilationResult.ContractMetadata;
 import org.tron.common.solc.SolidityCompiler;
 import org.tron.common.utils.AbiUtil;
+import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.TronException;
@@ -53,7 +55,7 @@ public class AutoDeployer {
 
         String bankTxId = bankClient.sendCoin(user.getAddress(), needBalance - balance);
         if (bankTxId != null && bankTxId.length() > 0){
-            Thread.sleep(3_000);
+//            Thread.sleep(3_000);
             account = cli.queryAccount();
             balance = account.getBalance();
         }
@@ -114,6 +116,40 @@ public class AutoDeployer {
         buffer.put(bytes, 0, bytes.length);
         buffer.flip();//need flip
         return buffer.getLong();
+    }
+
+    public static void dropAddressIssues(int issueCount, String address) throws TronException {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(new Date());
+        calendar.add(Calendar.DAY_OF_MONTH, +1);
+        long dayBefore = calendar.getTime().getTime();
+
+        calendar.add(Calendar.YEAR, +1);
+        long yearAfter = calendar.getTime().getTime();
+
+        for (int i = 0; i < issueCount; i++) {
+            try {
+                WalletFile user = bankClient.generateAddress(testerPswd);
+                cli.loadWalletFile(testerPswd, user);
+                dropBalance(cli, user, 10_000_000_000L);
+                String txId = cli.assetIssue("assertaa_" + i, 1000000,
+                    1000, 100000, 0,
+                    dayBefore, yearAfter, 0, "descaa_" + i, String.format("http://abc_%d.com.", i),
+                    1000, 10000, null);
+                TransactionInfo info = checkSignedTxId(txId);
+                if (info == null){
+                    throw new TronException("create issue exception: " + txId);
+                }
+                Account account = cli.queryAccount();
+                String tokenId = account.getAssetIssuedID().toStringUtf8();
+
+                cli.transferAsset(address, tokenId, 100000);
+
+            } catch (CipherException | IOException | TronException | InterruptedException e) {
+                e.printStackTrace();
+                throw new TronException(e.getMessage());
+            }
+        }
     }
 
     public static void testSuicide(){
@@ -209,8 +245,28 @@ public class AutoDeployer {
         }
     }
 
-    public static void main(String [] args){
-        testSuicide();
+    public static void testTokenBalance() throws CipherException, TronException, IOException, InterruptedException {
+
+//        dropAddressIssues(10, "TFVCqLPSCLUz9pFabt37widUMY7Hzec8UP");
+
+        CompilationResult compilationResult = doCompile("test4_1.sol", true);
+
+        CompilationResult.ContractMetadata dest = compilationResult.getContract("Dest");
+        String destAddr = deployContract(bankClient, dest, 1000_000_000);
+        logger.info("deploy contract Dst:" + destAddr);
+//    cli.transferAsset(destAddr, tokenId, 100000);
+
+
+        CompilationResult.ContractMetadata src = compilationResult.getContract("Src");
+        String srcAddr = deployContract(bankClient, src, 1000_000_000);
+        logger.info("deploy contract Src:"+ srcAddr);
+
+    }
+
+    public static void main(String [] args) throws InterruptedException, TronException, CipherException, IOException {
+
+        testTokenBalance();
+//        testSuicide();
     }
 //    public static void main(String[] args) {
 //        String contractFileName = "test01.sol";

@@ -192,7 +192,7 @@ public class WalletApiWrapper {
     return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
   }
 
-  public boolean assetIssue(String name, long totalSupply, int trxNum, int icoNum, int precision,
+  public boolean assetIssue(String name, String abbreviation, long totalSupply, int trxNum, int icoNum, int precision,
       long startTime, long endTime, int voteScore, String description, String url,
       long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
       throws CipherException, IOException, CancelException {
@@ -204,6 +204,7 @@ public class WalletApiWrapper {
     Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(wallet.getAddress()));
     builder.setName(ByteString.copyFrom(name.getBytes()));
+    builder.setAbbr(ByteString.copyFrom(abbreviation.getBytes()));
 
     if (totalSupply <= 0) {
       return false;

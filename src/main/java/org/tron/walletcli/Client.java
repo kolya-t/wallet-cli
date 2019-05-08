@@ -586,11 +586,11 @@ public class Client {
 
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 11 || (parameters.length & 1) == 0) {
+    if (parameters == null || parameters.length < 11 ) {
       System.out
           .println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
-          "AssetIssue AssetName TotalSupply TrxNum AssetNum Precision "
+          "AssetIssue AssetName Abbreviation TotalSupply TrxNum AssetNum Precision "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
@@ -602,18 +602,19 @@ public class Client {
     }
 
     String name = parameters[0];
-    String totalSupplyStr = parameters[1];
-    String trxNumStr = parameters[2];
-    String icoNumStr = parameters[3];
-    String precisionStr = parameters[4];
-    String startYyyyMmDd = parameters[5];
-    String endYyyyMmDd = parameters[6];
-    String description = parameters[7];
-    String url = parameters[8];
-    String freeNetLimitPerAccount = parameters[9];
-    String publicFreeNetLimitString = parameters[10];
+    String abbreviation = parameters[1];
+    String totalSupplyStr = parameters[2];
+    String trxNumStr = parameters[3];
+    String icoNumStr = parameters[4];
+    String precisionStr = parameters[5];
+    String startYyyyMmDd = parameters[6];
+    String endYyyyMmDd = parameters[7];
+    String description = parameters[8];
+    String url = parameters[9];
+    String freeNetLimitPerAccount = parameters[10];
+    String publicFreeNetLimitString = parameters[11];
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (int i = 11; i < parameters.length; i += 2) {
+    for (int i = 12; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
       frozenSupply.put(days, amount);
@@ -631,7 +632,7 @@ public class Client {
     long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
     boolean result = walletApiWrapper
-        .assetIssue(name, totalSupply, trxNum, icoNum, precision, startTime, endTime,
+        .assetIssue(name, abbreviation, totalSupply, trxNum, icoNum, precision, startTime, endTime,
             0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");

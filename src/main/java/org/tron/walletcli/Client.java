@@ -1714,7 +1714,8 @@ public class Client {
 
     SmartContract contractDeployContract = WalletApi.getContract(addressBytes);
     if (contractDeployContract != null) {
-      System.out.println("contract :" + contractDeployContract.getAbi().toString());
+//      System.out.println("contract :" + contractDeployContract.getAbi().toString());
+      System.out.println("contract :" + Hex.toHexString(contractDeployContract.getBytecode().toByteArray()));
       System.out.println("contract owner:" + WalletApi.encode58Check(contractDeployContract
           .getOriginAddress().toByteArray()));
       System.out.println("contract ConsumeUserResourcePercent:" + contractDeployContract

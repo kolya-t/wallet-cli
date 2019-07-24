@@ -512,12 +512,12 @@ public class WalletApi {
       System.out.println("Transaction is empty");
       return false;
     }
-    System.out.println(
-        "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
-    System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
-    System.out.println(Utils.printTransaction(transactionExtention));
+//    System.out.println(
+//        "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+//    System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
+//    System.out.println(Utils.printTransaction(transactionExtention));
 
-    if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract ) {
+    if (transaction.getRawData().getContract(0).getType() != ContractType.ShieldedTransferContract ) {
       transaction = signTransaction(transaction);
     } else {
       Any any = transaction.getRawData().getContract(0).getParameter();
@@ -527,8 +527,21 @@ public class WalletApi {
         transaction = signOnlyForShieldedTransaction(transaction);
       }
     }
-
+    showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
+  }
+
+  private void showTransactionAfterSign(Transaction transaction) {
+    System.out.println("Your transaction details are as follows, please confirm.");
+    System.out.println(Utils.printTransaction(transaction));
+    System.out
+        .println("transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
+
+    if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract ) {
+      byte[] contractAddress = generateContractAddress(transaction);
+      System.out.println(
+          "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
+    }
   }
 
   private static boolean processShieldedTransaction(TransactionExtention transactionExtention, WalletApi wallet)
@@ -577,6 +590,8 @@ public class WalletApi {
       return false;
     }
     transaction = signTransaction(transaction);
+
+    showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 

@@ -463,7 +463,7 @@ public class WalletApi {
       throws CipherException, IOException, CancelException {
     System.out.println(
         "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.");
-    transaction = TransactionUtils.setPermissionId(transaction);
+
     while (true) {
       System.out.println("Please choose your key for sign.");
       WalletFile walletFile = selcetWalletFileE();
@@ -528,6 +528,46 @@ public class WalletApi {
       }
     }
     showTransactionAfterSign(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  private static boolean processShieldedTransaction(TransactionExtention transactionExtention, WalletApi wallet)
+          throws IOException, CipherException, CancelException {
+    if (transactionExtention == null) {
+      return false;
+    }
+    Return ret = transactionExtention.getResult();
+    if (!ret.getResult()) {
+      System.out.println("Code = " + ret.getCode());
+      System.out.println("Message = " + ret.getMessage().toStringUtf8());
+      return false;
+    }
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("Transaction is empty");
+      return false;
+    }
+
+    if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract ) {
+      return false;
+    }
+
+    Any any = transaction.getRawData().getContract(0).getParameter();
+    Contract.ShieldedTransferContract shieldedTransferContract =
+            any.unpack(ShieldedTransferContract.class);
+    if (shieldedTransferContract.getFromAmount() > 0 ) {
+      if (wallet == null || !wallet.isLoginState()) {
+        logger.warn("Warning: processShieldedTransaction failed, Please login first !!");
+        return false;
+      }
+
+      System.out.println("Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+      System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
+      System.out.println(Utils.printTransaction(transactionExtention));
+
+      transaction = wallet.signOnlyForShieldedTransaction(transaction);
+    }
+
     return rpcCli.broadcastTransaction(transaction);
   }
 

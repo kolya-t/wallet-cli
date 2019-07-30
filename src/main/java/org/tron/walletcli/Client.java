@@ -480,9 +480,9 @@ public class Client {
 
   private void fundInject(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("fundInject needs 2 parameters like following: ");
-      System.out.println("fundInject ToAddress Amount");
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("fundInject needs 1 parameters like following: ");
+      System.out.println("fundInject Amount");
       return;
     }
 
@@ -2021,6 +2021,7 @@ public class Client {
     System.out.println("VoteWitness");
     System.out.println("WithdrawBalance");
     System.out.println("Create2");
+    System.out.println("fundInject");
 //    System.out.println("buyStorage");
 //    System.out.println("buyStorageBytes");
 //    System.out.println("sellStorage");

@@ -555,6 +555,14 @@ public class WalletApi {
     }
   }
 
+  public boolean fundInject(long amount)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.FundInjectContract contract = createFundInjectContract(owner, amount);
+    TransactionExtention transactionExtention = rpcCli.createTransaction(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
   public boolean updateAccount(byte[] accountNameBytes)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
@@ -722,6 +730,16 @@ public class WalletApi {
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(owner);
     builder.setToAddress(bsTo);
+    builder.setOwnerAddress(bsOwner);
+    builder.setAmount(amount);
+
+    return builder.build();
+  }
+
+  public static Contract.FundInjectContract createFundInjectContract(byte[] owner,
+      long amount) {
+    Contract.FundInjectContract.Builder builder = Contract.FundInjectContract.newBuilder();
+    ByteString bsOwner = ByteString.copyFrom(owner);
     builder.setOwnerAddress(bsOwner);
     builder.setAmount(amount);
 

@@ -164,6 +164,16 @@ public class WalletApiWrapper {
     return wallet.sendCoin(to, amount);
   }
 
+  public boolean fundInject(long amount)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: SendCoin failed,  Please login first !!");
+      return false;
+    }
+
+    return wallet.fundInject(amount);
+  }
+
   public boolean transferAsset(String toAddress, String assertName, long amount)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {

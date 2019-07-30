@@ -406,7 +406,7 @@ service Wallet {
 
   rpc TriggerConstantContract (TriggerSmartContract) returns (TransactionExtention) {
   }
-  
+
   rpc ClearContractABI (ClearABIContract) returns (TransactionExtention) {
   }
 
@@ -623,8 +623,10 @@ service Wallet {
 
   }
 
-  rpc GetTransactionApprovedList(Transaction) returns (TransactionApprovedList) {
+  rpc GetTransactionApprovedList (Transaction) returns (TransactionApprovedList) {
 
+  }
+  rpc FundInject (FundInjectContract) returns (TransactionExtention) {
   }
 
   rpc GetNodeInfo (EmptyMessage) returns (NodeInfo) {

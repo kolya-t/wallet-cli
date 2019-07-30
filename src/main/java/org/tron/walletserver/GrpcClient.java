@@ -203,6 +203,10 @@ public class GrpcClient {
     return blockingStubFull.updateAccount2(contract);
   }
 
+  public TransactionExtention createTransaction(Contract.FundInjectContract contract) {
+    return blockingStubFull.fundInject(contract);
+  }
+
   public Transaction createTransaction(Contract.SetAccountIdContract contract) {
     return blockingStubFull.setAccountId(contract);
   }

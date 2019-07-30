@@ -478,6 +478,25 @@ public class Client {
     }
   }
 
+  private void fundInject(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("fundInject needs 2 parameters like following: ");
+      System.out.println("fundInject ToAddress Amount");
+      return;
+    }
+
+    String amountStr = parameters[0];
+    long amount = new Long(amountStr);
+
+    boolean result = walletApiWrapper.fundInject(amount);
+    if (result) {
+      logger.info("fundInject " + amount + " drop  successful !!");
+    } else {
+      logger.info("fundInject " + amount + " drop  failed !!");
+    }
+  }
+
   private void testTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
@@ -2173,6 +2192,10 @@ public class Client {
           }
           case "sendcoin": {
             sendCoin(parameters);
+            break;
+          }
+          case "fundinject": {
+            fundInject(parameters);
             break;
           }
           case "testtransaction": {

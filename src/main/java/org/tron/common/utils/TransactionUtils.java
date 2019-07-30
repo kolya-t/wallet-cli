@@ -19,6 +19,7 @@ import com.google.protobuf.ByteString;
 import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,6 @@ import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.Transaction.Contract;
 
 public class TransactionUtils {
 
@@ -165,11 +165,19 @@ public class TransactionUtils {
     return true;
   }
 
-  public static Transaction sign(Transaction transaction, ECKey myKey) {
+  public static Transaction sign(Transaction transaction, ECKey myKey, byte[] chainId) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
-
-    ECDSASignature signature = myKey.sign(hash);
+    byte[] newHash;
+    if (Objects.isNull(chainId)) {
+      newHash = hash;
+    } else {
+      byte[] hashWithChainId = Arrays.copyOf(hash, hash.length + chainId.length);
+      System
+          .arraycopy(chainId, 0, hashWithChainId, hash.length, chainId.length);
+      newHash = Sha256Hash.hash(hashWithChainId);
+    }
+    ECDSASignature signature = myKey.sign(newHash);
     ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
     transactionBuilderSigned.addSignature(bsSign);
     transaction = transactionBuilderSigned.build();

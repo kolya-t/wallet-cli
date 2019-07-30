@@ -103,7 +103,7 @@ public class WalletApi {
   private byte[] address;
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
   private static int rpcVersion = 0;
-
+  private static byte[] chainId;
   private static GrpcClient rpcCli = init();
 
 //  static {
@@ -136,6 +136,9 @@ public class WalletApi {
     }
     if (config.hasPath("RPC_version")) {
       rpcVersion = config.getInt("RPC_version");
+    }
+    if (config.hasPath("chain.id")) {
+      chainId = ByteArray.fromHexString(config.getString("chain.id"));
     }
     return new GrpcClient(fullNode, solidityNode);
   }
@@ -408,7 +411,8 @@ public class WalletApi {
       byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
       org.tron.keystore.StringUtils.clear(password);
 
-      transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+      transaction = TransactionUtils
+          .sign(transaction, this.getEcKey(walletFile, passwd), chainId);
       System.out
           .println("current transaction hex string is " + ByteArray
               .toHexString(transaction.toByteArray()));
@@ -1967,8 +1971,8 @@ public class WalletApi {
     char[] password = Utils.inputPassword(false);
     byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
     org.tron.keystore.StringUtils.clear(password);
-
-    transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+    transaction = TransactionUtils
+        .sign(transaction, this.getEcKey(walletFile, passwd), chainId);
     org.tron.keystore.StringUtils.clear(passwd);
     return transaction;
   }

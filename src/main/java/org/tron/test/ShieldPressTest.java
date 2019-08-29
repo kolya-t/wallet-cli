@@ -69,11 +69,11 @@ public class ShieldPressTest {
   private  int workType = 1;
 
   //设置为账户中金额的最大值即可
-  private final long AMOUNT = 10000;
-  private static byte[] PRIVATE_KEY;
+  private final long AMOUNT = 10000*1000000;
+  public static byte[] PRIVATE_KEY;
   private GrpcClient rpcCli;
   private int workThread = 8;
-  private final static String OVK = "030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d";
+  public final static String OVK = "030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d";
   private static AtomicLong shieldTransactionCount = new AtomicLong(0);
   //以固定线程数启动
   private ExecutorService fixedThreadPool;
@@ -167,10 +167,10 @@ public class ShieldPressTest {
     return Optional.empty();
   }
 
-  private boolean checkTransactionOnline(final String trxId, final String ivk) {
+  public static boolean checkTransactionOnline(final String trxId, final String ivk, GrpcClient rpcCli) {
     while (true) {
       //如果可以扫描到交易，则继续
-      if (scanBlockByIvk(trxId, ivk)) {
+      if (scanBlockByIvk(trxId, ivk, rpcCli)) {
 //      if (getTransactionInfoById(trxId)) {
         return true;
       }
@@ -184,8 +184,8 @@ public class ShieldPressTest {
   }
 
 
-  public long getShieldFee() {
-    Optional<ChainParameters> chainParameters = rpcCli.getChainParameters();
+  public static long getShieldFee(GrpcClient client) {
+    Optional<ChainParameters> chainParameters = client.getChainParameters();
     if (chainParameters.isPresent()) {
       for (ChainParameter para : chainParameters.get().getChainParameterList()) {
         if (para.getKey().equals("getShieldedTransactionFee")) {
@@ -196,7 +196,7 @@ public class ShieldPressTest {
     return 10000000L;
   }
 
-  private boolean scanBlockByIvk(final String hash, final String ivk ) {
+  public static boolean scanBlockByIvk(final String hash, final String ivk, GrpcClient rpcCli) {
     Block block = rpcCli.getBlock(-1);
     if (block != null) {
       long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
@@ -308,7 +308,7 @@ public class ShieldPressTest {
     try {
       final ECKey ecKey = ECKey.fromPrivate(PRIVATE_KEY);
       byte[] fromAddress = ecKey.getAddress();
-      long fee = getShieldFee();
+      long fee = getShieldFee(rpcCli);
 
       PrivateParameters.Builder builder = PrivateParameters.newBuilder();
       builder.setTransparentFromAddress(ByteString.copyFrom(fromAddress));
@@ -358,7 +358,7 @@ public class ShieldPressTest {
   private String generatShieldToShieldOnlineTransaction(final ShieldAddressInfo fromShieldAddress,
       final ShieldAddressInfo toShieldAddress) {
 
-    long fee = getShieldFee();
+    long fee = getShieldFee(rpcCli);
     long shieldFromAmount = 0L;
     try {
       PrivateParameters.Builder builder = PrivateParameters.newBuilder();
@@ -411,7 +411,6 @@ public class ShieldPressTest {
 
           Note.Builder noteBuild = Note.newBuilder();
           noteBuild.setPaymentAddress(noteTx.getNote().getPaymentAddress());
-
           noteBuild.setValue(noteTx.getNote().getValue());
           noteBuild.setRcm(noteTx.getNote().getRcm());
           noteBuild.setMemo(noteTx.getNote().getMemo());
@@ -476,7 +475,7 @@ public class ShieldPressTest {
 
       while (true) {
         //如果可以扫描到交易，则继续
-        if (!checkTransactionOnline(hash, ByteArray.toHexString(fromShieldAddress.getIvk()))) {
+        if (!checkTransactionOnline(hash, ByteArray.toHexString(fromShieldAddress.getIvk()), rpcCli)) {
           System.out.println("Can't find transaction hash " + hash + " on line.");
           break;
         }
@@ -492,6 +491,25 @@ public class ShieldPressTest {
         }
 
         fromShieldAddress = toShieldAddress;
+      }
+    }
+  }
+
+
+  void rpcFailurePress() {
+    System.out.println("Rpc Failure Thread " + Thread.currentThread().getName() + " start to work");
+    while (true) {
+      //公开转匿名
+      FailureZKTransaction testClass = new FailureZKTransaction();
+      Random random = new Random();
+      int i = random.nextInt(20)%20 + 1;
+      String methodName = "FailureTest" + i;
+
+      try {
+         testClass.getClass().
+            getMethod(methodName, new Class[]{GrpcClient.class}).invoke(null, new Object[]{rpcCli});
+      } catch (Exception e) {
+        e.printStackTrace();
       }
     }
   }
@@ -634,12 +652,26 @@ public class ShieldPressTest {
   }
 
   void startWork() {
-    if (workType == 1) { //匿名交易压测模式
+    if (workType == 1) {
+      //为异常case准备有效的两个cm
+      FailureZKTransaction.prepareUnspentNote(rpcCli);
+
+      //匿名交易压测模式
       for (int i = 0; i < workThread; i++) {
         fixedThreadPool.execute(new Runnable() {
           @Override
           public void run() {
             rpcPress();
+          }
+        });
+      }
+
+      //固定启动两个异常Case的线程
+      for (int i = 0; i < 2; i++) {
+        Executors.newFixedThreadPool(2).execute(new Runnable() {
+          @Override
+          public void run() {
+            rpcFailurePress();
           }
         });
       }

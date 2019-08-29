@@ -40,7 +40,7 @@ public class FailureZKTransaction {
   private static final String TO_ADDRESS = "TEtV4s8gczUf6vAk5rpLX4nniLdFPWrmmA";
   private static final String TO_PRIVATE_KEY =
       "68e52dd77a8b6941cff922779c8d8171631161bf3487c8f4e7b950840d15787a";
-  private static long TRANSFER_AMOUNT = 20000000L;
+  public static long TRANSFER_AMOUNT = 100L;
 
   private static List<ShieldAddressInfo> unspentShieldedAddressArray = new ArrayList<>();
   private static List<SpendNote> unSpendNoteArray = new ArrayList<>();

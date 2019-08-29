@@ -69,7 +69,7 @@ public class ShieldPressTest {
   private  int workType = 1;
 
   //设置为账户中金额的最大值即可
-  private final long AMOUNT = 10000*1000000;
+  private long AMOUNT = 10000;
   public static byte[] PRIVATE_KEY;
   private GrpcClient rpcCli;
   private int workThread = 8;
@@ -80,6 +80,7 @@ public class ShieldPressTest {
 
   private String trxIdFile;
   private String fullNodeUrl;
+  public static long shieldedFee = 0;
 
   private boolean initParameters() {
     Config config = Configuration.getByFileName(null,"config_test.conf");
@@ -119,6 +120,9 @@ public class ShieldPressTest {
       }
       System.out.println("workThread " + workThread);
       fixedThreadPool = Executors.newFixedThreadPool(workThread);
+
+      AMOUNT *= getShieldFee(rpcCli);
+      FailureZKTransaction.TRANSFER_AMOUNT = 3*getShieldFee(rpcCli);
     } else {
       if (config.hasPath("fullhttp")) {
         fullNodeUrl = "http://" + config.getString("fullhttp")+"/wallet/";
@@ -185,15 +189,18 @@ public class ShieldPressTest {
 
 
   public static long getShieldFee(GrpcClient client) {
-    Optional<ChainParameters> chainParameters = client.getChainParameters();
-    if (chainParameters.isPresent()) {
-      for (ChainParameter para : chainParameters.get().getChainParameterList()) {
-        if (para.getKey().equals("getShieldedTransactionFee")) {
-          return para.getValue();
+    if (shieldedFee <= 0) {
+      Optional<ChainParameters> chainParameters = client.getChainParameters();
+      if (chainParameters.isPresent()) {
+        for (ChainParameter para : chainParameters.get().getChainParameterList()) {
+          if (para.getKey().equals("getShieldedTransactionFee")) {
+            shieldedFee = para.getValue();
+            break;
+          }
         }
       }
     }
-    return 10000000L;
+    return shieldedFee;
   }
 
   public static boolean scanBlockByIvk(final String hash, final String ivk, GrpcClient rpcCli) {
